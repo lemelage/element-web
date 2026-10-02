@@ -22,18 +22,48 @@ jobs:
           node-version: '24.13.1'
           cache: 'pnpm'
 
-      - name: Allow matrix-js-sdk build in pnpm
+      - name: Allow matrix-js-sdk build in pnpm workspace
         run: |
-          Add-Content -Path pnpm-workspace.yaml -Value "`nallowBuilds:`n  matrix-js-sdk: true"
-        shell: pwsh
+          node -e "
+            const fs = require('fs');
+            const path = 'pnpm-workspace.yaml';
+            let content = fs.readFileSync(path, 'utf8');
+            const lines = content.split('\n');
+            const result = [];
+            let found = false;
+            let inserted = false;
+            for (const line of lines) {
+              result.push(line);
+              if (line.match(/^allowBuilds:\s*$/) && !found) {
+                found = true;
+                if (!content.includes('matrix-js-sdk: true')) {
+                  result.push('  matrix-js-sdk: true');
+                  inserted = true;
+                }
+              }
+            }
+            if (!found) {
+              result.push('');
+              result.push('allowBuilds:');
+              result.push('  matrix-js-sdk: true');
+              inserted = true;
+            }
+            if (inserted) {
+              fs.writeFileSync(path, result.join('\n'));
+              console.log('Added matrix-js-sdk to allowBuilds');
+            } else {
+              console.log('matrix-js-sdk already in allowBuilds, skipping');
+            }
+          "
 
       - name: Install dependencies
         run: pnpm install
 
       - name: Create config directory and place config.json
         run: |
-          mkdir myconfig
-          echo '{
+          New-Item -ItemType Directory -Force -Path myconfig | Out-Null
+          @'
+          {
             "default_server_config": {
               "m.homeserver": {
                 "base_url": "https://chat.avt.local"
@@ -47,14 +77,14 @@ jobs:
             "features": {
               "feature_encryption": false
             }
-          }' > myconfig/config.json
-        shell: pwsh
+          }
+          '@ | Out-File -Encoding utf8 myconfig/config.json
 
       - name: Fetch Element Web with custom config
         working-directory: apps/desktop
         run: pnpm run fetch --noverify --cfgdir ../../myconfig
 
-      - name: Configure perMachine MSI
+      - name: Enable perMachine MSI installation
         working-directory: apps/desktop
         run: |
           node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));p.build=p.build||{};p.build.msi={perMachine:true,oneClick:false};fs.writeFileSync('package.json',JSON.stringify(p,null,2))"
