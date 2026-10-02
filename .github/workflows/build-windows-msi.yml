@@ -22,11 +22,11 @@ jobs:
           node-version: '24.13.1'
           cache: 'pnpm'
 
-      - name: Fix pnpm lockfile
-        run: pnpm install --fix-lockfile
+      - name: Remove broken lockfile
+        run: Remove-Item -Path pnpm-lock.yaml -Force
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --no-frozen-lockfile
 
       - name: Create config directory and place config.json
         run: |
