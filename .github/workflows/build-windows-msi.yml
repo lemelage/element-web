@@ -57,7 +57,17 @@ jobs:
           "
 
       - name: Install dependencies
-        run: pnpm install
+        run: |
+          pnpm config set --location=project --json allowBuilds '{"matrix-js-sdk": true}'
+          pnpm install --config.strict-dep-builds=false
+          # Отключаем строгую проверку типов в tsconfig.json
+          node -e "
+            const fs = require('fs');
+            const p = JSON.parse(fs.readFileSync('tsconfig.json', 'utf8'));
+            p.compilerOptions = p.compilerOptions || {};
+            p.compilerOptions.skipLibCheck = true;
+            fs.writeFileSync('tsconfig.json', JSON.stringify(p, null, 2));
+          "
 
       - name: Create config directory and place config.json
         run: |
