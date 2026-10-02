@@ -53,7 +53,15 @@ jobs:
         working-directory: apps/desktop
         run: pnpm run fetch --noverify --cfgdir ../../myconfig
 
-      - name: Enable perMachine MSI installation
+      - name: Check where webapp.asar is located
+        working-directory: apps/desktop
+        run: |
+          Write-Host "=== Searching for webapp.asar in apps/desktop ==="
+          Get-ChildItem -Path . -Recurse -Filter webapp.asar -ErrorAction SilentlyContinue | Select-Object FullName, Length
+          Write-Host "=== Searching for webapp.asar in repository root ==="
+          Get-ChildItem -Path ../.. -Recurse -Filter webapp.asar -ErrorAction SilentlyContinue | Select-Object FullName, Length
+
+      - name: Enable perMachine MSI and ensure webapp.asar is included
         working-directory: apps/desktop
         run: |
           node -e "
@@ -62,6 +70,10 @@ jobs:
             p.build = p.build || {};
             p.build.win = { target: ['msi'] };
             p.build.msi = { perMachine: true, oneClick: false };
+            // Явно указываем electron-builder включить webapp.asar в extraResources
+            p.build.extraResources = [
+              { 'from': '.', 'to': '.', 'filter': ['webapp.asar'] }
+            ];
             fs.writeFileSync('package.json', JSON.stringify(p, null, 2));
           "
 
