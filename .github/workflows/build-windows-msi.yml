@@ -1,0 +1,67 @@
+name: Build Windows MSI
+
+on:
+  workflow_dispatch: # Позволяет запускать сборку вручную из вкладки Actions
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.2
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.13.1'
+          cache: 'pnpm'
+      
+      - name: Install dependencies
+        run: pnpm install
+      
+      - name: Create config directory and place config.json
+        run: |
+          mkdir myconfig
+          echo '{
+            "default_server_config": {
+              "m.homeserver": {
+                "base_url": "https://chat.avt.local"
+              }
+            },
+            "sso_redirect_options": {
+              "immediate": true,
+              "on_welcome_page": true
+            },
+            "disable_custom_urls": true,
+            "features": {
+              "feature_encryption": false
+            }
+          }' > myconfig/config.json
+      
+      - name: Fetch Element Web with custom config
+        run: pnpm run fetch --noverify --cfgdir myconfig
+      
+      - name: Build MSI package with perMachine setting
+        run: |
+          # Модифицируем package.json, чтобы MSI устанавливался для всех пользователей в Program Files
+          node -e "
+            const fs = require('fs');
+            const pkgPath = 'apps/desktop/package.json';
+            const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+            pkg.build = pkg.build || {};
+            pkg.build.msi = { perMachine: true, oneClick: false };
+            fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
+          "
+          pnpm run build
+      
+      - name: Upload MSI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: element-desktop-msi
+          path: dist/*.msi
