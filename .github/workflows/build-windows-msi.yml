@@ -1,7 +1,7 @@
 name: Build Windows MSI
 
 on:
-  workflow_dispatch: # Позволяет запускать сборку вручную из вкладки Actions
+  workflow_dispatch:
 
 jobs:
   build:
@@ -14,7 +14,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 10.6.5 # оставляем эту версию
+          version: 10.6.5
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -22,14 +22,14 @@ jobs:
           node-version: '24.13.1'
           cache: 'pnpm'
 
-      - name: Create pnpm-workspace.yaml to allow matrix-js-sdk build
+      - name: Allow matrix-js-sdk build in pnpm
         run: |
-          echo "allowBuilds:" > pnpm-workspace.yaml
-          echo "  matrix-js-sdk: true" >> pnpm-workspace.yaml
+          Add-Content -Path pnpm-workspace.yaml -Value "`nallowBuilds:`n  matrix-js-sdk: true"
+        shell: pwsh
 
       - name: Install dependencies
-        run: pnpm install --config.strict-dep-builds=false
-      
+        run: pnpm install
+
       - name: Create config directory and place config.json
         run: |
           mkdir myconfig
@@ -48,25 +48,23 @@ jobs:
               "feature_encryption": false
             }
           }' > myconfig/config.json
-      
+        shell: pwsh
+
       - name: Fetch Element Web with custom config
-        run: pnpm run fetch --noverify --cfgdir myconfig
-      
-      - name: Build MSI package with perMachine setting
+        working-directory: apps/desktop
+        run: pnpm run fetch --noverify --cfgdir ../../myconfig
+
+      - name: Configure perMachine MSI
+        working-directory: apps/desktop
         run: |
-          # Модифицируем package.json, чтобы MSI устанавливался для всех пользователей в Program Files
-          node -e "
-            const fs = require('fs');
-            const pkgPath = 'apps/desktop/package.json';
-            const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
-            pkg.build = pkg.build || {};
-            pkg.build.msi = { perMachine: true, oneClick: false };
-            fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
-          "
-          pnpm run build
-      
+          node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));p.build=p.build||{};p.build.msi={perMachine:true,oneClick:false};fs.writeFileSync('package.json',JSON.stringify(p,null,2))"
+
+      - name: Build MSI package
+        working-directory: apps/desktop
+        run: pnpm run build
+
       - name: Upload MSI artifact
         uses: actions/upload-artifact@v4
         with:
           name: element-desktop-msi
-          path: dist/*.msi
+          path: apps/desktop/dist/*.msi
