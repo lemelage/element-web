@@ -5,7 +5,7 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: windows-2022
     
     steps:
       - name: Checkout repository
@@ -23,7 +23,7 @@ jobs:
           cache: 'pnpm'
       
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --no-frozen-lockfile
       
       - name: Create config directory and place config.json
         run: |
