@@ -14,7 +14,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 10.28.2
+          version: 9.15.4 # Используем стабильную версию
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -22,11 +22,10 @@ jobs:
           node-version: '24.13.1'
           cache: 'pnpm'
 
-      - name: Remove broken lockfile
-        run: Remove-Item -Path pnpm-lock.yaml -Force
-
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: |
+          Remove-Item -Path pnpm-lock.yaml -Force
+          pnpm install --ignore-scripts
 
       - name: Create config directory and place config.json
         run: |
