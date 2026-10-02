@@ -14,7 +14,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 9.15.4 # Используем стабильную версию
+          version: 9.15.4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -56,6 +56,18 @@ jobs:
         working-directory: apps/desktop
         run: |
           node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));p.build=p.build||{};p.build.msi={perMachine:true,oneClick:false};fs.writeFileSync('package.json',JSON.stringify(p,null,2))"
+
+      - name: Patch auto-launch.ts
+        working-directory: apps/desktop
+        run: |
+          node -e "
+            const fs = require('fs');
+            const path = 'src/auto-launch.ts';
+            let content = fs.readFileSync(path, 'utf8');
+            content = content.replace(/this\.opts/g, '(this as any).opts');
+            fs.writeFileSync(path, content);
+            console.log('Patched auto-launch.ts');
+          "
 
       - name: Build MSI package
         working-directory: apps/desktop
