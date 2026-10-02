@@ -13,8 +13,6 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 10.6.5
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -22,52 +20,8 @@ jobs:
           node-version: '24.13.1'
           cache: 'pnpm'
 
-      - name: Allow matrix-js-sdk build in pnpm workspace
-        run: |
-          node -e "
-            const fs = require('fs');
-            const path = 'pnpm-workspace.yaml';
-            let content = fs.readFileSync(path, 'utf8');
-            const lines = content.split('\n');
-            const result = [];
-            let found = false;
-            let inserted = false;
-            for (const line of lines) {
-              result.push(line);
-              if (line.match(/^allowBuilds:\s*$/) && !found) {
-                found = true;
-                if (!content.includes('matrix-js-sdk: true')) {
-                  result.push('  matrix-js-sdk: true');
-                  inserted = true;
-                }
-              }
-            }
-            if (!found) {
-              result.push('');
-              result.push('allowBuilds:');
-              result.push('  matrix-js-sdk: true');
-              inserted = true;
-            }
-            if (inserted) {
-              fs.writeFileSync(path, result.join('\n'));
-              console.log('Added matrix-js-sdk to allowBuilds');
-            } else {
-              console.log('matrix-js-sdk already in allowBuilds, skipping');
-            }
-          "
-
       - name: Install dependencies
-        run: |
-          pnpm config set --location=project --json allowBuilds '{"matrix-js-sdk": true}'
-          pnpm install --config.strict-dep-builds=false
-          # Отключаем строгую проверку типов в tsconfig.json
-          node -e "
-            const fs = require('fs');
-            const p = JSON.parse(fs.readFileSync('tsconfig.json', 'utf8'));
-            p.compilerOptions = p.compilerOptions || {};
-            p.compilerOptions.skipLibCheck = true;
-            fs.writeFileSync('tsconfig.json', JSON.stringify(p, null, 2));
-          "
+        run: pnpm install --frozen-lockfile
 
       - name: Create config directory and place config.json
         run: |
