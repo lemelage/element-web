@@ -75,8 +75,19 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: pnpm run build
 
+      - name: Find build output
+        working-directory: apps/desktop
+        run: |
+          Write-Host "Searching for MSI and EXE files..."
+          Get-ChildItem -Path . -Recurse -Include *.msi,*.exe -ErrorAction SilentlyContinue | Select-Object FullName, Length | Format-Table -AutoSize
+
       - name: Upload MSI artifact
         uses: actions/upload-artifact@v4
         with:
-          name: element-desktop-msi
-          path: apps/desktop/dist/*.msi
+          name: element-desktop-installer
+          path: |
+            apps/desktop/dist/**/*.msi
+            apps/desktop/dist/**/*.exe
+            apps/desktop/release/**/*.msi
+            apps/desktop/release/**/*.exe
+          if-no-files-found: warn
