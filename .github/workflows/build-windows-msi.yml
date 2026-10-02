@@ -5,25 +5,25 @@ on:
 
 jobs:
   build:
-    runs-on: windows-2022
-    
+    runs-on: windows-2022 # Уже исправлено вами ранее
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 10.28.2
-      
+          version: 8.15.4 # ИЗМЕНЕНО: Откат на старую версию
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '24.13.1'
           cache: 'pnpm'
-      
+
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install # ИЗМЕНЕНО: Убран флаг --no-frozen-lockfile
       
       - name: Create config directory and place config.json
         run: |
