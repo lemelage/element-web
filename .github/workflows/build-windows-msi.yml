@@ -93,21 +93,42 @@ jobs:
             console.log('Patched SetupEncryptionDialog.tsx');
           "
 
-      - name: Enable perMachine MSI, set product name and appId
+      - name: Configure package.json for Russian display name and custom icon
         working-directory: apps/desktop
         run: |
           node -e "
             const fs = require('fs');
             const p = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-            p.productName = 'Molvushka';
+            
+            // === ОТОБРАЖАЕМОЕ ИМЯ (русское) ===
+            // Видно в Пуске, в списке установленных программ, в ярлыке на рабочем столе
+            p.productName = 'Молвушка';
+            
+            // === СИСТЕМНЫЕ ИМЕНА (английские) ===
             p.build = p.build || {};
-            p.build.appId = 'ru.avt.molvushka';
-            p.build.win = { target: ['msi'] };
+            p.build.win = p.build.win || {};
+            
+            // Имя EXE-файла (английское) — путь будет C:\\Program Files\\Molvushka\\Molvushka.exe
+            p.build.win.executableName = 'Molvushka';
+            
+            // === ИКОНКА ===
+            // Путь из apps/desktop до корневой папки build с иконкой
+            p.build.win.icon = '../../build/icon.ico';
+            
+            // === ЦЕЛЬ СБОРКИ ===
+            p.build.win.target = ['msi'];
             p.build.msi = { perMachine: true, oneClick: false };
+            
+            // === APP ID (уникальный) ===
+            p.build.appId = 'ru.avt.molvushka';
+            
+            // === ДОП. РЕСУРСЫ ===
             p.build.extraResources = [
               { 'from': '.', 'to': '.', 'filter': ['webapp.asar'] }
             ];
+            
             fs.writeFileSync('package.json', JSON.stringify(p, null, 2));
+            console.log('productName=Молвушка, executableName=Molvushka, icon=../../build/icon.ico');
           "
 
       - name: Build MSI package
