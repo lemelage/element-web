@@ -42,8 +42,17 @@ jobs:
               "on_welcome_page": true
             },
             "disable_custom_urls": true,
+            "force_verification": false,
             "features": {
               "feature_encryption": false
+            },
+            "setting_defaults": {
+              "e2ee_default": false,
+              "feature_encryption": false,
+              "show_labs_settings": false
+            },
+            "io.element.e2ee": {
+              "force_disable": true
             },
             "brand": "Молвушка"
           }
@@ -52,38 +61,6 @@ jobs:
       - name: Fetch Element Web with custom config
         working-directory: apps/desktop
         run: pnpm run fetch --noverify --cfgdir ../../myconfig
-
-      - name: Check where webapp.asar is located
-        working-directory: apps/desktop
-        run: |
-          Write-Host "=== Searching for webapp.asar in apps/desktop ==="
-          Get-ChildItem -Path . -Recurse -Filter webapp.asar -ErrorAction SilentlyContinue | Select-Object FullName, Length
-          Write-Host "=== Searching for webapp.asar in repository root ==="
-          Get-ChildItem -Path ../.. -Recurse -Filter webapp.asar -ErrorAction SilentlyContinue | Select-Object FullName, Length
-
-      - name: Enable perMachine MSI, set product name and appId
-        working-directory: apps/desktop
-        run: |
-          node -e "
-            const fs = require('fs');
-            const p = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-            
-            // Имя папки в Program Files, ярлыка и exe-файла (на английском)
-            p.productName = 'Molvushka';
-            
-            p.build = p.build || {};
-            // Уникальный appId — чтобы Windows считала приложение новым
-            p.build.appId = 'ru.avt.molvushka';
-            // Цель сборки — MSI
-            p.build.win = { target: ['msi'] };
-            p.build.msi = { perMachine: true, oneClick: false };
-            // Явно включаем webapp.asar
-            p.build.extraResources = [
-              { 'from': '.', 'to': '.', 'filter': ['webapp.asar'] }
-            ];
-            
-            fs.writeFileSync('package.json', JSON.stringify(p, null, 2));
-          "
 
       - name: Patch auto-launch.ts
         working-directory: apps/desktop
@@ -95,6 +72,42 @@ jobs:
             content = content.replace(/this\.opts/g, '(this as any).opts');
             fs.writeFileSync(path, content);
             console.log('Patched auto-launch.ts');
+          "
+
+      - name: Patch SetupEncryptionDialog to disable verification UI
+        working-directory: apps/desktop
+        run: |
+          node -e "
+            const fs = require('fs');
+            const path = 'src/components/views/dialogs/security/SetupEncryptionDialog.tsx';
+            if (!fs.existsSync(path)) {
+              console.log('File not found, skipping patch');
+              process.exit(0);
+            }
+            let content = fs.readFileSync(path, 'utf8');
+            content = content.replace(
+              /public render\(\): React\.ReactNode \{[\s\S]*?\n  \}/,
+              'public render(): React.ReactNode {\n    return null;\n  }'
+            );
+            fs.writeFileSync(path, content);
+            console.log('Patched SetupEncryptionDialog.tsx');
+          "
+
+      - name: Enable perMachine MSI, set product name and appId
+        working-directory: apps/desktop
+        run: |
+          node -e "
+            const fs = require('fs');
+            const p = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            p.productName = 'Molvushka';
+            p.build = p.build || {};
+            p.build.appId = 'ru.avt.molvushka';
+            p.build.win = { target: ['msi'] };
+            p.build.msi = { perMachine: true, oneClick: false };
+            p.build.extraResources = [
+              { 'from': '.', 'to': '.', 'filter': ['webapp.asar'] }
+            ];
+            fs.writeFileSync('package.json', JSON.stringify(p, null, 2));
           "
 
       - name: Build MSI package
