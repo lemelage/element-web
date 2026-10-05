@@ -1,4 +1,4 @@
-name: Build Windows Installer (NSIS)
+name: Build Windows Installer
 
 on:
   workflow_dispatch:
@@ -54,7 +54,8 @@ jobs:
             "io.element.e2ee": {
               "force_disable": true
             },
-            "brand": "Молвушка"
+            "brand": "Молвушка",
+            "icon_path": "resources/icon.ico"
           }
           '@ | Out-File -Encoding utf8 myconfig/config.json
 
@@ -74,50 +75,60 @@ jobs:
             console.log('Patched auto-launch.ts');
           "
 
-      - name: Configure package.json for Russian NSIS installer
+      - name: Configure package.json for full rebranding
         working-directory: apps/desktop
         run: |
           node -e "
             const fs = require('fs');
             const p = JSON.parse(fs.readFileSync('package.json', 'utf8'));
             
-            // === ОТОБРАЖАЕМОЕ ИМЯ (русское) ===
-            // В NSIS можно использовать кириллицу без проблем с кодировкой
+            // === ОСНОВНЫЕ МЕТАДАННЫЕ ===
             p.productName = 'Молвушка';
+            p.description = 'Корпоративный мессенджер Молвушка';
             
+            // === ПРОИЗВОДИТЕЛЬ (отображается в панели управления) ===
+            p.author = {
+              name: 'AVT',
+              email: 'support@avt.local'
+            };
+            
+            // === НАСТРОЙКИ СБОРКИ ===
             p.build = p.build || {};
+            p.build.appId = 'ru.avt.molvushka';
+            
+            // === WINDOWS: ПУТИ И ИКОНКИ ===
             p.build.win = p.build.win || {};
-            
-            // Системное имя EXE-файла (английское, для путей)
             p.build.win.executableName = 'Molvushka';
-            
-            // Путь к иконке
             p.build.win.icon = '../../build/icon.ico';
-            
-            // === ЦЕЛЬ СБОРКИ: NSIS ===
+            p.build.win.publisherName = 'AVT';
             p.build.win.target = ['nsis'];
             
-            // === НАСТРОЙКИ NSIS ===
+            // === NSIS: УСТАНОВЩИК И ЯРЛЫКИ ===
             p.build.nsis = {
               oneClick: false,
               perMachine: true,
               allowToChangeInstallationDirectory: true,
               createDesktopShortcut: true,
               createStartMenuShortcut: true,
-              shortcutName: 'Молвушка', // Русское имя ярлыка
-              unicode: true              // Включаем Unicode (по умолчанию true)
+              shortcutName: 'Молвушка',
+              uninstallDisplayName: 'Молвушка',
+              artifactName: 'Molvushka-Setup-\${version}.\${ext}',
+              installerIcon: '../../build/icon.ico',
+              uninstallerIcon: '../../build/icon.ico',
+              installerHeaderIcon: '../../build/icon.ico'
             };
             
-            p.build.appId = 'ru.avt.molvushka';
+            // === ДОП. РЕСУРСЫ ===
             p.build.extraResources = [
-              { 'from': '.', 'to': '.', 'filter': ['webapp.asar'] }
+              { 'from': '.', 'to': '.', 'filter': ['webapp.asar'] },
+              { 'from': '../../build/icon.ico', 'to': 'icon.ico' }
             ];
             
             fs.writeFileSync('package.json', JSON.stringify(p, null, 2));
-            console.log('Configured: NSIS installer with Russian productName and shortcutName');
+            console.log('Full rebranding configured');
           "
 
-      - name: Build NSIS package
+      - name: Build installer package
         working-directory: apps/desktop
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -126,13 +137,13 @@ jobs:
       - name: Find build output
         working-directory: apps/desktop
         run: |
-          Write-Host "Searching for EXE files..."
+          Write-Host "Searching for installer files..."
           Get-ChildItem -Path . -Recurse -Include *.exe -ErrorAction SilentlyContinue | Select-Object FullName, Length | Format-Table -AutoSize
 
-      - name: Upload NSIS artifact
+      - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
-          name: element-desktop-nsis
+          name: molvushka-installer
           path: |
             apps/desktop/dist/**/*.exe
           if-no-files-found: warn
