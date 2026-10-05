@@ -86,7 +86,7 @@ jobs:
             p.productName = 'Молвушка';
             p.description = 'Корпоративный мессенджер Молвушка';
             
-            // === ПРОИЗВОДИТЕЛЬ (отображается в панели управления) ===
+            // === ПРОИЗВОДИТЕЛЬ ===
             p.author = {
               name: 'AVT',
               email: 'support@avt.local'
@@ -96,14 +96,14 @@ jobs:
             p.build = p.build || {};
             p.build.appId = 'ru.avt.molvushka';
             
-            // === WINDOWS: ПУТИ И ИКОНКИ ===
+            // === WINDOWS ===
             p.build.win = p.build.win || {};
             p.build.win.executableName = 'Molvushka';
             p.build.win.icon = '../../build/icon.ico';
             p.build.win.publisherName = 'AVT';
             p.build.win.target = ['nsis'];
             
-            // === NSIS: УСТАНОВЩИК И ЯРЛЫКИ ===
+            // === NSIS ===
             p.build.nsis = {
               oneClick: false,
               perMachine: true,
@@ -112,7 +112,6 @@ jobs:
               createStartMenuShortcut: true,
               shortcutName: 'Молвушка',
               uninstallDisplayName: 'Молвушка',
-              artifactName: 'Molvushka-Setup-\${version}.\${ext}',
               installerIcon: '../../build/icon.ico',
               uninstallerIcon: '../../build/icon.ico',
               installerHeaderIcon: '../../build/icon.ico'
