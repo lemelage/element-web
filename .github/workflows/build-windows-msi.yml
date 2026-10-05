@@ -74,25 +74,6 @@ jobs:
             console.log('Patched auto-launch.ts');
           "
 
-      - name: Patch SetupEncryptionDialog to disable verification UI
-        working-directory: apps/desktop
-        run: |
-          node -e "
-            const fs = require('fs');
-            const path = 'src/components/views/dialogs/security/SetupEncryptionDialog.tsx';
-            if (!fs.existsSync(path)) {
-              console.log('File not found, skipping patch');
-              process.exit(0);
-            }
-            let content = fs.readFileSync(path, 'utf8');
-            content = content.replace(
-              /public render\(\): React\.ReactNode \{[\s\S]*?\n  \}/,
-              'public render(): React.ReactNode {\n    return null;\n  }'
-            );
-            fs.writeFileSync(path, content);
-            console.log('Patched SetupEncryptionDialog.tsx');
-          "
-
       - name: Configure package.json for Russian display name and custom icon
         working-directory: apps/desktop
         run: |
@@ -112,12 +93,18 @@ jobs:
             p.build.win.executableName = 'Molvushka';
             
             // === ИКОНКА ===
-            // Путь из apps/desktop до корневой папки build с иконкой
             p.build.win.icon = '../../build/icon.ico';
             
             // === ЦЕЛЬ СБОРКИ ===
             p.build.win.target = ['msi'];
-            p.build.msi = { perMachine: true, oneClick: false };
+            
+            // === MSI: кодировка UTF-8 для поддержки кириллицы ===
+            p.build.msi = {
+              perMachine: true,
+              oneClick: false,
+              warningsAsErrors: false,
+              additionalWixArgs: ['-codepage:65001']
+            };
             
             // === APP ID (уникальный) ===
             p.build.appId = 'ru.avt.molvushka';
@@ -128,7 +115,7 @@ jobs:
             ];
             
             fs.writeFileSync('package.json', JSON.stringify(p, null, 2));
-            console.log('productName=Молвушка, executableName=Molvushka, icon=../../build/icon.ico');
+            console.log('Configured: productName=Молвушка, codepage=65001');
           "
 
       - name: Build MSI package
