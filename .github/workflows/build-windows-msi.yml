@@ -54,8 +54,7 @@ jobs:
             "io.element.e2ee": {
               "force_disable": true
             },
-            "brand": "Молвушка",
-            "icon_path": "resources/icon.ico"
+            "brand": "Молвушка"
           }
           '@ | Out-File -Encoding utf8 myconfig/config.json
 
@@ -94,13 +93,13 @@ jobs:
             p.build = p.build || {};
             p.build.appId = 'ru.avt.molvushka';
             
-            // === WINDOWS (допустимые поля) ===
+            // === WINDOWS ===
             p.build.win = p.build.win || {};
             p.build.win.executableName = 'Molvushka';
             p.build.win.icon = '../../build/icon.ico';
             p.build.win.target = ['nsis'];
             
-            // === NSIS (на уровне build, а не win!) ===
+            // === NSIS ===
             p.build.nsis = {
               oneClick: false,
               perMachine: true,
@@ -114,14 +113,15 @@ jobs:
               installerHeaderIcon: '../../build/icon.ico'
             };
             
-            // === ДОП. РЕСУРСЫ ===
+            // === ДОП. РЕСУРСЫ (включая иконки трея) ===
             p.build.extraResources = [
               { 'from': '.', 'to': '.', 'filter': ['webapp.asar'] },
-              { 'from': '../../build/icon.ico', 'to': 'icon.ico' }
+              { 'from': '../../build/icon.ico', 'to': 'icon.ico' },
+              { 'from': '../../build/tray', 'to': 'tray', 'filter': ['**/*'] }
             ];
             
             fs.writeFileSync('package.json', JSON.stringify(p, null, 2));
-            console.log('Rebranding configured correctly: nsis moved to build level');
+            console.log('Full rebranding configured with tray icons');
           "
 
       - name: Build installer package
