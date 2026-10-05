@@ -1,4 +1,4 @@
-name: Build Windows MSI
+name: Build Windows Installer (NSIS)
 
 on:
   workflow_dispatch:
@@ -74,29 +74,38 @@ jobs:
             console.log('Patched auto-launch.ts');
           "
 
-      - name: Configure package.json (English productName, Russian shortcutName)
+      - name: Configure package.json for Russian NSIS installer
         working-directory: apps/desktop
         run: |
           node -e "
             const fs = require('fs');
             const p = JSON.parse(fs.readFileSync('package.json', 'utf8'));
             
-            // === СИСТЕМНОЕ ИМЯ (английское) — для EXE и папки установки ===
-            // Это имя будет использоваться в путях и не вызовет ошибок LGHT0311
-            p.productName = 'Molvushka';
+            // === ОТОБРАЖАЕМОЕ ИМЯ (русское) ===
+            // В NSIS можно использовать кириллицу без проблем с кодировкой
+            p.productName = 'Молвушка';
             
             p.build = p.build || {};
             p.build.win = p.build.win || {};
-            p.build.win.executableName = 'Molvushka';
-            p.build.win.icon = '../../build/icon.ico';
-            p.build.win.target = ['msi'];
             
-            // === MSI: английское productName + русский ярлык ===
-            p.build.msi = {
-              perMachine: true,
+            // Системное имя EXE-файла (английское, для путей)
+            p.build.win.executableName = 'Molvushka';
+            
+            // Путь к иконке
+            p.build.win.icon = '../../build/icon.ico';
+            
+            // === ЦЕЛЬ СБОРКИ: NSIS ===
+            p.build.win.target = ['nsis'];
+            
+            // === НАСТРОЙКИ NSIS ===
+            p.build.nsis = {
               oneClick: false,
-              warningsAsErrors: false,
-              shortcutName: 'Молвушка'  // <-- Русское имя ярлыка
+              perMachine: true,
+              allowToChangeInstallationDirectory: true,
+              createDesktopShortcut: true,
+              createStartMenuShortcut: true,
+              shortcutName: 'Молвушка', // Русское имя ярлыка
+              unicode: true              // Включаем Unicode (по умолчанию true)
             };
             
             p.build.appId = 'ru.avt.molvushka';
@@ -105,10 +114,10 @@ jobs:
             ];
             
             fs.writeFileSync('package.json', JSON.stringify(p, null, 2));
-            console.log('Configured: productName=Molvushka, shortcutName=Молвушка');
+            console.log('Configured: NSIS installer with Russian productName and shortcutName');
           "
 
-      - name: Build MSI package
+      - name: Build NSIS package
         working-directory: apps/desktop
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -117,13 +126,13 @@ jobs:
       - name: Find build output
         working-directory: apps/desktop
         run: |
-          Write-Host "Searching for MSI files..."
-          Get-ChildItem -Path . -Recurse -Include *.msi -ErrorAction SilentlyContinue | Select-Object FullName, Length | Format-Table -AutoSize
+          Write-Host "Searching for EXE files..."
+          Get-ChildItem -Path . -Recurse -Include *.exe -ErrorAction SilentlyContinue | Select-Object FullName, Length | Format-Table -AutoSize
 
-      - name: Upload MSI artifact
+      - name: Upload NSIS artifact
         uses: actions/upload-artifact@v4
         with:
-          name: element-desktop-msi
+          name: element-desktop-nsis
           path: |
-            apps/desktop/dist/**/*.msi
+            apps/desktop/dist/**/*.exe
           if-no-files-found: warn
