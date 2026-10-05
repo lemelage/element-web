@@ -103,8 +103,8 @@ jobs:
             p.build.win.publisherName = 'AVT';
             p.build.win.target = ['nsis'];
             
-            // === NSIS ===
-            p.build.nsis = {
+            // === NSIS (внутри build.win!) ===
+            p.build.win.nsis = {
               oneClick: false,
               perMachine: true,
               allowToChangeInstallationDirectory: true,
@@ -113,8 +113,7 @@ jobs:
               shortcutName: 'Молвушка',
               uninstallDisplayName: 'Молвушка',
               installerIcon: '../../build/icon.ico',
-              uninstallerIcon: '../../build/icon.ico',
-              installerHeaderIcon: '../../build/icon.ico'
+              uninstallerIcon: '../../build/icon.ico'
             };
             
             // === ДОП. РЕСУРСЫ ===
