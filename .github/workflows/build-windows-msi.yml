@@ -82,29 +82,26 @@ jobs:
             const fs = require('fs');
             const p = JSON.parse(fs.readFileSync('package.json', 'utf8'));
             
-            // === ОСНОВНЫЕ МЕТАДАННЫЕ ===
+            // === МЕТАДАННЫЕ ===
             p.productName = 'Молвушка';
             p.description = 'Корпоративный мессенджер Молвушка';
-            
-            // === ПРОИЗВОДИТЕЛЬ ===
             p.author = {
               name: 'AVT',
               email: 'support@avt.local'
             };
             
-            // === НАСТРОЙКИ СБОРКИ ===
+            // === СБОРКА ===
             p.build = p.build || {};
             p.build.appId = 'ru.avt.molvushka';
             
-            // === WINDOWS ===
+            // === WINDOWS (допустимые поля) ===
             p.build.win = p.build.win || {};
             p.build.win.executableName = 'Molvushka';
             p.build.win.icon = '../../build/icon.ico';
-            p.build.win.publisherName = 'AVT';
             p.build.win.target = ['nsis'];
             
-            // === NSIS (внутри build.win!) ===
-            p.build.win.nsis = {
+            // === NSIS (на уровне build, а не win!) ===
+            p.build.nsis = {
               oneClick: false,
               perMachine: true,
               allowToChangeInstallationDirectory: true,
@@ -113,7 +110,8 @@ jobs:
               shortcutName: 'Молвушка',
               uninstallDisplayName: 'Молвушка',
               installerIcon: '../../build/icon.ico',
-              uninstallerIcon: '../../build/icon.ico'
+              uninstallerIcon: '../../build/icon.ico',
+              installerHeaderIcon: '../../build/icon.ico'
             };
             
             // === ДОП. РЕСУРСЫ ===
@@ -123,7 +121,7 @@ jobs:
             ];
             
             fs.writeFileSync('package.json', JSON.stringify(p, null, 2));
-            console.log('Full rebranding configured');
+            console.log('Rebranding configured correctly: nsis moved to build level');
           "
 
       - name: Build installer package
