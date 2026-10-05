@@ -74,48 +74,37 @@ jobs:
             console.log('Patched auto-launch.ts');
           "
 
-      - name: Configure package.json for Russian display name and custom icon
+      - name: Configure package.json (English product, Russian shortcut)
         working-directory: apps/desktop
         run: |
           node -e "
             const fs = require('fs');
             const p = JSON.parse(fs.readFileSync('package.json', 'utf8'));
             
-            // === ОТОБРАЖАЕМОЕ ИМЯ (русское) ===
-            // Видно в Пуске, в списке установленных программ, в ярлыке на рабочем столе
-            p.productName = 'Молвушка';
+            // === СИСТЕМНОЕ ИМЯ (английское) — для EXE и папки установки ===
+            p.productName = 'Molvushka';
             
-            // === СИСТЕМНЫЕ ИМЕНА (английские) ===
             p.build = p.build || {};
             p.build.win = p.build.win || {};
-            
-            // Имя EXE-файла (английское) — путь будет C:\\Program Files\\Molvushka\\Molvushka.exe
             p.build.win.executableName = 'Molvushka';
-            
-            // === ИКОНКА ===
             p.build.win.icon = '../../build/icon.ico';
-            
-            // === ЦЕЛЬ СБОРКИ ===
             p.build.win.target = ['msi'];
             
-            // === MSI: кодировка UTF-8 для поддержки кириллицы ===
+            // === MSI: английское productName + русский ярлык ===
             p.build.msi = {
               perMachine: true,
               oneClick: false,
               warningsAsErrors: false,
-              additionalWixArgs: ['-codepage:65001']
+              shortcutName: 'Молвушка'
             };
             
-            // === APP ID (уникальный) ===
             p.build.appId = 'ru.avt.molvushka';
-            
-            // === ДОП. РЕСУРСЫ ===
             p.build.extraResources = [
               { 'from': '.', 'to': '.', 'filter': ['webapp.asar'] }
             ];
             
             fs.writeFileSync('package.json', JSON.stringify(p, null, 2));
-            console.log('Configured: productName=Молвушка, codepage=65001');
+            console.log('Configured: English productName=Molvushka, Russian shortcutName=Молвушка');
           "
 
       - name: Build MSI package
