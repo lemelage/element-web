@@ -64,94 +64,21 @@ jobs:
 
       - name: Patch auto-launch.ts
         working-directory: apps/desktop
+        shell: cmd
         run: |
-          node -e "
-            const fs = require('fs');
-            const path = 'src/auto-launch.ts';
-            if (fs.existsSync(path)) {
-              let content = fs.readFileSync(path, 'utf8');
-              content = content.replace(/this\.opts/g, '(this as any).opts');
-              fs.writeFileSync(path, content);
-              console.log('Patched auto-launch.ts');
-            } else {
-              console.log('auto-launch.ts not found, skipping');
-            }
-          "
+          node -e "const fs=require('fs');const p='src/auto-launch.ts';if(!fs.existsSync(p)){console.log('auto-launch.ts not found');process.exit(0);}let c=fs.readFileSync(p,'utf8');c=c.replace(/this\.opts/g,'(this as any).opts');fs.writeFileSync(p,c);console.log('Patched auto-launch.ts');"
 
       - name: Patch tray.ts to set window icon
         working-directory: apps/desktop
+        shell: cmd
         run: |
-          @'
-          const fs = require('fs');
-          const trayPath = 'src/tray.ts';
-          if (!fs.existsSync(trayPath)) {
-            console.log('tray.ts not found, skipping');
-            process.exit(0);
-          }
-
-          let content = fs.readFileSync(trayPath, 'utf8');
-          const searchPattern = "trayIcon.setToolTip(getConfig().brand);";
-          const replacement = `trayIcon.setToolTip(getConfig().brand);
-    // PATCH: also set the main window icon for Windows taskbar
-    if (global.mainWindow) {
-        global.mainWindow.setIcon(defaultIcon);
-    }`;
-
-          if (content.includes(searchPattern)) {
-            content = content.replace(searchPattern, replacement);
-            fs.writeFileSync(trayPath, content);
-            console.log('Patched tray.ts with window icon');
-          } else {
-            console.log('Pattern not found in tray.ts');
-          }
-          '@ | Out-File -Encoding utf8 patch_tray.cjs
-
-          node patch_tray.cjs
-          Remove-Item patch_tray.cjs
+          node -e "const fs=require('fs');const p='src/tray.ts';if(!fs.existsSync(p)){console.log('tray.ts not found');process.exit(0);}let c=fs.readFileSync(p,'utf8');const s='trayIcon.setToolTip(getConfig().brand);';if(c.indexOf(s)===-1){console.log('Pattern not found');process.exit(0);}const r='trayIcon.setToolTip(getConfig().brand);\n    if (global.mainWindow) { global.mainWindow.setIcon(defaultIcon); }';c=c.replace(s,r);fs.writeFileSync(p,c);console.log('Patched tray.ts');"
 
       - name: Configure package.json for full rebranding
         working-directory: apps/desktop
+        shell: cmd
         run: |
-          node -e "
-            const fs = require('fs');
-            const p = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-            
-            p.productName = 'Молвушка';
-            p.description = 'Корпоративный мессенджер Молвушка';
-            p.author = {
-              name: 'AVT',
-              email: 'support@avt.local'
-            };
-            
-            p.build = p.build || {};
-            p.build.appId = 'ru.avt.molvushka';
-            
-            p.build.win = p.build.win || {};
-            p.build.win.executableName = 'Molvushka';
-            p.build.win.icon = '../../build/icon.ico';
-            p.build.win.target = ['nsis'];
-            
-            p.build.nsis = {
-              oneClick: false,
-              perMachine: true,
-              allowToChangeInstallationDirectory: true,
-              createDesktopShortcut: true,
-              createStartMenuShortcut: true,
-              shortcutName: 'Молвушка',
-              uninstallDisplayName: 'Молвушка',
-              installerIcon: '../../build/icon.ico',
-              uninstallerIcon: '../../build/icon.ico',
-              installerHeaderIcon: '../../build/icon.ico'
-            };
-            
-            p.build.extraResources = [
-              { 'from': '.', 'to': '.', 'filter': ['webapp.asar'] },
-              { 'from': '../../build/icon.ico', 'to': 'build/icon.ico' }
-            ];
-            
-            fs.writeFileSync('package.json', JSON.stringify(p, null, 2));
-            console.log('Package.json configured');
-          "
+          node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));p.productName='Молвушка';p.description='Корпоративный мессенджер Молвушка';p.author={name:'AVT',email:'support@avt.local'};p.build=p.build||{};p.build.appId='ru.avt.molvushka';p.build.win=p.build.win||{};p.build.win.executableName='Molvushka';p.build.win.icon='../../build/icon.ico';p.build.win.target=['nsis'];p.build.nsis={oneClick:false,perMachine:true,allowToChangeInstallationDirectory:true,createDesktopShortcut:true,createStartMenuShortcut:true,shortcutName:'Молвушка',uninstallDisplayName:'Молвушка',installerIcon:'../../build/icon.ico',uninstallerIcon:'../../build/icon.ico',installerHeaderIcon:'../../build/icon.ico'};p.build.extraResources=[{'from':'.','to':'.','filter':['webapp.asar']},{'from':'../../build/icon.ico','to':'build/icon.ico'}];fs.writeFileSync('package.json',JSON.stringify(p,null,2));console.log('Package.json configured');"
 
       - name: Build installer package
         working-directory: apps/desktop
