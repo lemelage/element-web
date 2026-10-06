@@ -62,12 +62,6 @@ jobs:
         working-directory: apps/desktop
         run: pnpm run fetch --noverify --cfgdir ../../myconfig
 
-      - name: Copy icons to source directory
-        run: |
-          Copy-Item -Path "build/icon.ico" -Destination "apps/desktop/src/icon.ico" -Force
-          New-Item -ItemType Directory -Force -Path "apps/desktop/src/tray" | Out-Null
-          Copy-Item -Path "build/tray/*" -Destination "apps/desktop/src/tray/" -Recurse -Force
-
       - name: Patch auto-launch.ts
         working-directory: apps/desktop
         run: |
@@ -80,40 +74,25 @@ jobs:
             console.log('Patched auto-launch.ts');
           "
 
-      - name: Patch Tray and Taskbar Icons
+      - name: Patch Tray Icon (Safe method)
         working-directory: apps/desktop
         run: |
           @'
           const fs = require('fs');
-
-          // Патчим иконку в трее
           const trayPath = 'src/tray.ts';
           if (fs.existsSync(trayPath)) {
             let trayContent = fs.readFileSync(trayPath, 'utf8');
-            trayContent = trayContent.replace(/nativeImage\.createFromPath\([^)]+\)/g, "nativeImage.createFromPath(require('path').join(__dirname, 'tray', 'tray-icon.png'))");
+            // Используем process.resourcesPath, куда electron-builder кладет extraResources
+            trayContent = trayContent.replace(/nativeImage\.createFromPath\([^)]+\)/g, "nativeImage.createFromPath(require('path').join(process.resourcesPath, 'tray', 'tray-icon.png'))");
             fs.writeFileSync(trayPath, trayContent);
-            console.log('Patched tray.ts');
+            console.log('Patched tray.ts successfully');
           } else {
             console.log('tray.ts not found!');
           }
+          '@ | Out-File -Encoding utf8 patch_tray.cjs
 
-          // Патчим иконку главного окна (Панель задач)
-          const mainPath = 'src/electron-main.ts';
-          if (fs.existsSync(mainPath)) {
-            let mainContent = fs.readFileSync(mainPath, 'utf8');
-            // Заменяем путь к иконке в конструкторе BrowserWindow
-            mainContent = mainContent.replace(/icon:\s*[^,\n]+/g, "icon: require('path').join(__dirname, 'icon.ico')");
-            // Заменяем win.setIcon, если он используется
-            mainContent = mainContent.replace(/win\.setIcon\([^)]+\)/g, "win.setIcon(require('path').join(__dirname, 'icon.ico'))");
-            fs.writeFileSync(mainPath, mainContent);
-            console.log('Patched electron-main.ts');
-          } else {
-            console.log('electron-main.ts not found!');
-          }
-          '@ | Out-File -Encoding utf8 patch_icons.cjs
-
-          node patch_icons.cjs
-          Remove-Item patch_icons.cjs
+          node patch_tray.cjs
+          Remove-Item patch_tray.cjs
 
       - name: Configure package.json for full rebranding
         working-directory: apps/desktop
@@ -135,7 +114,8 @@ jobs:
             
             p.build.win = p.build.win || {};
             p.build.win.executableName = 'MolvushkaV2';
-            p.build.win.icon = 'src/icon.ico'; // Иконка берется из исходников
+            // Путь к иконке относительно apps/desktop
+            p.build.win.icon = '../../build/icon.ico'; 
             p.build.win.target = ['nsis'];
             
             p.build.nsis = {
@@ -146,14 +126,15 @@ jobs:
               createStartMenuShortcut: true,
               shortcutName: 'Молвушка',
               uninstallDisplayName: 'Молвушка',
-              installerIcon: 'src/icon.ico',
-              uninstallerIcon: 'src/icon.ico',
-              installerHeaderIcon: 'src/icon.ico'
+              installerIcon: '../../build/icon.ico',
+              uninstallerIcon: '../../build/icon.ico',
+              installerHeaderIcon: '../../build/icon.ico'
             };
             
-            // Оставляем только webapp.asar, иконки теперь встроены в код
+            // Копируем иконки в resources рядом с app.asar
             p.build.extraResources = [
-              { 'from': '.', 'to': '.', 'filter': ['webapp.asar'] }
+              { 'from': '../../build/icon.ico', 'to': 'icon.ico' },
+              { 'from': '../../build/tray', 'to': 'tray', 'filter': ['**/*'] }
             ];
             
             fs.writeFileSync('package.json', JSON.stringify(p, null, 2));
