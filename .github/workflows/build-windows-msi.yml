@@ -110,10 +110,10 @@ jobs:
           } else {
             console.log('electron-main.ts not found!');
           }
-          '@ | Out-File -Encoding utf8 patch_icons.js
+          '@ | Out-File -Encoding utf8 patch_icons.cjs
 
-          node patch_icons.js
-          Remove-Item patch_icons.js
+          node patch_icons.cjs
+          Remove-Item patch_icons.cjs
 
       - name: Configure package.json for full rebranding
         working-directory: apps/desktop
