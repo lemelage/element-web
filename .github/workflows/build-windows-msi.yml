@@ -83,32 +83,37 @@ jobs:
       - name: Patch Tray and Taskbar Icons
         working-directory: apps/desktop
         run: |
-          node -e "
-            const fs = require('fs');
-            
-            // Патчим иконку в трее
-            const trayPath = 'src/tray.ts';
-            if (fs.existsSync(trayPath)) {
-              let trayContent = fs.readFileSync(trayPath, 'utf8');
-              trayContent = trayContent.replace(/nativeImage\.createFromPath\([^)]+\)/g, \"nativeImage.createFromPath(path.join(__dirname, 'tray', 'tray-icon.png'))\");
-              fs.writeFileSync(trayPath, trayContent);
-              console.log('Patched tray.ts');
-            } else {
-              console.log('tray.ts not found!');
-            }
+          @'
+          const fs = require('fs');
 
-            // Патчим иконку главного окна (Панель задач)
-            const mainPath = 'src/electron-main.ts';
-            if (fs.existsSync(mainPath)) {
-              let mainContent = fs.readFileSync(mainPath, 'utf8');
-              mainContent = mainContent.replace(/icon:\s*[^,]+/g, \"icon: path.join(__dirname, 'icon.ico')\");
-              mainContent = mainContent.replace(/win\.setIcon\([^)]+\)/g, \"win.setIcon(path.join(__dirname, 'icon.ico'))\");
-              fs.writeFileSync(mainPath, mainContent);
-              console.log('Patched electron-main.ts');
-            } else {
-              console.log('electron-main.ts not found!');
-            }
-          "
+          // Патчим иконку в трее
+          const trayPath = 'src/tray.ts';
+          if (fs.existsSync(trayPath)) {
+            let trayContent = fs.readFileSync(trayPath, 'utf8');
+            trayContent = trayContent.replace(/nativeImage\.createFromPath\([^)]+\)/g, "nativeImage.createFromPath(require('path').join(__dirname, 'tray', 'tray-icon.png'))");
+            fs.writeFileSync(trayPath, trayContent);
+            console.log('Patched tray.ts');
+          } else {
+            console.log('tray.ts not found!');
+          }
+
+          // Патчим иконку главного окна (Панель задач)
+          const mainPath = 'src/electron-main.ts';
+          if (fs.existsSync(mainPath)) {
+            let mainContent = fs.readFileSync(mainPath, 'utf8');
+            // Заменяем путь к иконке в конструкторе BrowserWindow
+            mainContent = mainContent.replace(/icon:\s*[^,\n]+/g, "icon: require('path').join(__dirname, 'icon.ico')");
+            // Заменяем win.setIcon, если он используется
+            mainContent = mainContent.replace(/win\.setIcon\([^)]+\)/g, "win.setIcon(require('path').join(__dirname, 'icon.ico'))");
+            fs.writeFileSync(mainPath, mainContent);
+            console.log('Patched electron-main.ts');
+          } else {
+            console.log('electron-main.ts not found!');
+          }
+          '@ | Out-File -Encoding utf8 patch_icons.js
+
+          node patch_icons.js
+          Remove-Item patch_icons.js
 
       - name: Configure package.json for full rebranding
         working-directory: apps/desktop
@@ -125,11 +130,12 @@ jobs:
             };
             
             p.build = p.build || {};
+            // Меняем appId, чтобы Windows сбросила кэш иконок
             p.build.appId = 'ru.avt.molvushka.v2';
             
             p.build.win = p.build.win || {};
             p.build.win.executableName = 'MolvushkaV2';
-            p.build.win.icon = 'src/icon.ico'; // Теперь иконка берется из src
+            p.build.win.icon = 'src/icon.ico'; // Иконка берется из исходников
             p.build.win.target = ['nsis'];
             
             p.build.nsis = {
@@ -145,7 +151,7 @@ jobs:
               installerHeaderIcon: 'src/icon.ico'
             };
             
-            // Оставляем только webapp.asar, иконки теперь внутри кода
+            // Оставляем только webapp.asar, иконки теперь встроены в код
             p.build.extraResources = [
               { 'from': '.', 'to': '.', 'filter': ['webapp.asar'] }
             ];
