@@ -68,31 +68,15 @@ jobs:
           node -e "
             const fs = require('fs');
             const path = 'src/auto-launch.ts';
-            let content = fs.readFileSync(path, 'utf8');
-            content = content.replace(/this\.opts/g, '(this as any).opts');
-            fs.writeFileSync(path, content);
-            console.log('Patched auto-launch.ts');
+            if (fs.existsSync(path)) {
+              let content = fs.readFileSync(path, 'utf8');
+              content = content.replace(/this\.opts/g, '(this as any).opts');
+              fs.writeFileSync(path, content);
+              console.log('Patched auto-launch.ts');
+            } else {
+              console.log('auto-launch.ts not found, skipping');
+            }
           "
-
-      - name: Patch Tray Icon (Safe method)
-        working-directory: apps/desktop
-        run: |
-          @'
-          const fs = require('fs');
-          const trayPath = 'src/tray.ts';
-          if (fs.existsSync(trayPath)) {
-            let trayContent = fs.readFileSync(trayPath, 'utf8');
-            // Используем process.resourcesPath, куда electron-builder кладет extraResources
-            trayContent = trayContent.replace(/nativeImage\.createFromPath\([^)]+\)/g, "nativeImage.createFromPath(require('path').join(process.resourcesPath, 'tray', 'tray-icon.png'))");
-            fs.writeFileSync(trayPath, trayContent);
-            console.log('Patched tray.ts successfully');
-          } else {
-            console.log('tray.ts not found!');
-          }
-          '@ | Out-File -Encoding utf8 patch_tray.cjs
-
-          node patch_tray.cjs
-          Remove-Item patch_tray.cjs
 
       - name: Configure package.json for full rebranding
         working-directory: apps/desktop
@@ -101,23 +85,25 @@ jobs:
             const fs = require('fs');
             const p = JSON.parse(fs.readFileSync('package.json', 'utf8'));
             
-            p.productName = 'Молвушка V2';
+            // === МЕТАДАННЫЕ ===
+            p.productName = 'Молвушка';
             p.description = 'Корпоративный мессенджер Молвушка';
             p.author = {
               name: 'AVT',
               email: 'support@avt.local'
             };
             
+            // === СБОРКА ===
             p.build = p.build || {};
-            // Меняем appId, чтобы Windows сбросила кэш иконок
-            p.build.appId = 'ru.avt.molvushka.v2';
+            p.build.appId = 'ru.avt.molvushka';
             
+            // === WINDOWS ===
             p.build.win = p.build.win || {};
-            p.build.win.executableName = 'MolvushkaV2';
-            // Путь к иконке относительно apps/desktop
-            p.build.win.icon = '../../build/icon.ico'; 
+            p.build.win.executableName = 'Molvushka';
+            p.build.win.icon = '../../build/icon.ico';
             p.build.win.target = ['nsis'];
             
+            // === NSIS INSTALLER ===
             p.build.nsis = {
               oneClick: false,
               perMachine: true,
@@ -131,14 +117,13 @@ jobs:
               installerHeaderIcon: '../../build/icon.ico'
             };
             
-            // Копируем иконки в resources рядом с app.asar
+            // === ДОП. РЕСУРСЫ ===
             p.build.extraResources = [
-              { 'from': '../../build/icon.ico', 'to': 'icon.ico' },
-              { 'from': '../../build/tray', 'to': 'tray', 'filter': ['**/*'] }
+              { 'from': '.', 'to': '.', 'filter': ['webapp.asar'] }
             ];
             
             fs.writeFileSync('package.json', JSON.stringify(p, null, 2));
-            console.log('Full rebranding configured');
+            console.log('Package.json configured');
           "
 
       - name: Build installer package
