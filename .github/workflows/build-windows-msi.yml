@@ -117,13 +117,14 @@ jobs:
               installerHeaderIcon: '../../build/icon.ico'
             };
             
-            // === ДОП. РЕСУРСЫ ===
+            // === ГЛАВНОЕ ИСПРАВЛЕНИЕ: иконка должна лежать в resources/build/icon.ico ===
             p.build.extraResources = [
-              { 'from': '.', 'to': '.', 'filter': ['webapp.asar'] }
+              { 'from': '.', 'to': '.', 'filter': ['webapp.asar'] },
+              { 'from': '../../build/icon.ico', 'to': 'build/icon.ico' }
             ];
             
             fs.writeFileSync('package.json', JSON.stringify(p, null, 2));
-            console.log('Package.json configured');
+            console.log('Package.json configured with correct icon path');
           "
 
       - name: Build installer package
