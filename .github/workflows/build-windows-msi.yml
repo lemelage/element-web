@@ -68,11 +68,11 @@ jobs:
         run: |
           node -e "const fs=require('fs');const p='src/auto-launch.ts';if(!fs.existsSync(p)){console.log('auto-launch.ts not found');process.exit(0);}let c=fs.readFileSync(p,'utf8');c=c.replace(/this\.opts/g,'(this as any).opts');fs.writeFileSync(p,c);console.log('Patched auto-launch.ts');"
 
-      - name: Patch tray.ts to set window icon
+      - name: Patch electron-main.ts to set taskbar icon
         working-directory: apps/desktop
         shell: cmd
         run: |
-          node -e "const fs=require('fs');const p='src/tray.ts';if(!fs.existsSync(p)){console.log('tray.ts not found');process.exit(0);}let c=fs.readFileSync(p,'utf8');const s='trayIcon.setToolTip(getConfig().brand);';if(c.indexOf(s)===-1){console.log('Pattern not found');process.exit(0);}const r='trayIcon.setToolTip(getConfig().brand);\n    if (global.mainWindow) { global.mainWindow.setIcon(defaultIcon); }';c=c.replace(s,r);fs.writeFileSync(p,c);console.log('Patched tray.ts');"
+          node -e "const fs=require('fs');const p='src/electron-main.ts';if(!fs.existsSync(p)){console.log('electron-main.ts not found');process.exit(1);}let c=fs.readFileSync(p,'utf8');const s='global.mainWindow.setContentProtection(store.get(\"enableContentProtection\"));';if(c.indexOf(s)===-1){console.log('Pattern not found');process.exit(1);}const r='try { const iconPath = await getIconPath(); console.log(\"[Molvushka] Setting window icon from:\", iconPath); global.mainWindow.setIcon(iconPath); } catch (e) { console.error(\"[Molvushka] Failed to set window icon:\", e); }\n    '+s;c=c.replace(s,r);fs.writeFileSync(p,c);console.log('Patched electron-main.ts with setIcon');"
 
       - name: Configure package.json for full rebranding
         working-directory: apps/desktop
