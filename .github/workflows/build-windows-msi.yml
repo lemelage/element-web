@@ -1,1 +1,175 @@
+name: Build Windows Installer
 
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.13.1'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: |
+          Remove-Item -Path pnpm-lock.yaml -Force
+          pnpm install --ignore-scripts
+
+      - name: Create config directory and place config.json
+        run: |
+          New-Item -ItemType Directory -Force -Path myconfig | Out-Null
+          @'
+          {
+            "default_server_config": {
+              "m.homeserver": {
+                "base_url": "https://chat.avt.local"
+              }
+            },
+            "sso_redirect_options": {
+              "immediate": true,
+              "on_welcome_page": true
+            },
+            "disable_custom_urls": true,
+            "force_verification": false,
+            "features": {
+              "feature_encryption": false
+            },
+            "setting_defaults": {
+              "e2ee_default": false,
+              "feature_encryption": false,
+              "show_labs_settings": false
+            },
+            "io.element.e2ee": {
+              "force_disable": true
+            },
+            "brand": "Молвушка"
+          }
+          '@ | Out-File -Encoding utf8 myconfig/config.json
+
+      - name: Fetch Element Web with custom config
+        working-directory: apps/desktop
+        run: pnpm run fetch --noverify --cfgdir ../../myconfig
+
+      - name: Copy icons to source directory
+        run: |
+          Copy-Item -Path "build/icon.ico" -Destination "apps/desktop/src/icon.ico" -Force
+          New-Item -ItemType Directory -Force -Path "apps/desktop/src/tray" | Out-Null
+          Copy-Item -Path "build/tray/*" -Destination "apps/desktop/src/tray/" -Recurse -Force
+
+      - name: Patch auto-launch.ts
+        working-directory: apps/desktop
+        run: |
+          node -e "
+            const fs = require('fs');
+            const path = 'src/auto-launch.ts';
+            let content = fs.readFileSync(path, 'utf8');
+            content = content.replace(/this\.opts/g, '(this as any).opts');
+            fs.writeFileSync(path, content);
+            console.log('Patched auto-launch.ts');
+          "
+
+      - name: Patch Tray and Taskbar Icons
+        working-directory: apps/desktop
+        run: |
+          node -e "
+            const fs = require('fs');
+            
+            // Патчим иконку в трее
+            const trayPath = 'src/tray.ts';
+            if (fs.existsSync(trayPath)) {
+              let trayContent = fs.readFileSync(trayPath, 'utf8');
+              trayContent = trayContent.replace(/nativeImage\.createFromPath\([^)]+\)/g, \"nativeImage.createFromPath(path.join(__dirname, 'tray', 'tray-icon.png'))\");
+              fs.writeFileSync(trayPath, trayContent);
+              console.log('Patched tray.ts');
+            } else {
+              console.log('tray.ts not found!');
+            }
+
+            // Патчим иконку главного окна (Панель задач)
+            const mainPath = 'src/electron-main.ts';
+            if (fs.existsSync(mainPath)) {
+              let mainContent = fs.readFileSync(mainPath, 'utf8');
+              mainContent = mainContent.replace(/icon:\s*[^,]+/g, \"icon: path.join(__dirname, 'icon.ico')\");
+              mainContent = mainContent.replace(/win\.setIcon\([^)]+\)/g, \"win.setIcon(path.join(__dirname, 'icon.ico'))\");
+              fs.writeFileSync(mainPath, mainContent);
+              console.log('Patched electron-main.ts');
+            } else {
+              console.log('electron-main.ts not found!');
+            }
+          "
+
+      - name: Configure package.json for full rebranding
+        working-directory: apps/desktop
+        run: |
+          node -e "
+            const fs = require('fs');
+            const p = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            
+            p.productName = 'Молвушка V2';
+            p.description = 'Корпоративный мессенджер Молвушка';
+            p.author = {
+              name: 'AVT',
+              email: 'support@avt.local'
+            };
+            
+            p.build = p.build || {};
+            p.build.appId = 'ru.avt.molvushka.v2';
+            
+            p.build.win = p.build.win || {};
+            p.build.win.executableName = 'MolvushkaV2';
+            p.build.win.icon = 'src/icon.ico'; // Теперь иконка берется из src
+            p.build.win.target = ['nsis'];
+            
+            p.build.nsis = {
+              oneClick: false,
+              perMachine: true,
+              allowToChangeInstallationDirectory: true,
+              createDesktopShortcut: true,
+              createStartMenuShortcut: true,
+              shortcutName: 'Молвушка',
+              uninstallDisplayName: 'Молвушка',
+              installerIcon: 'src/icon.ico',
+              uninstallerIcon: 'src/icon.ico',
+              installerHeaderIcon: 'src/icon.ico'
+            };
+            
+            // Оставляем только webapp.asar, иконки теперь внутри кода
+            p.build.extraResources = [
+              { 'from': '.', 'to': '.', 'filter': ['webapp.asar'] }
+            ];
+            
+            fs.writeFileSync('package.json', JSON.stringify(p, null, 2));
+            console.log('Full rebranding configured');
+          "
+
+      - name: Build installer package
+        working-directory: apps/desktop
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: pnpm run build
+
+      - name: Find build output
+        working-directory: apps/desktop
+        run: |
+          Write-Host "Searching for installer files..."
+          Get-ChildItem -Path . -Recurse -Include *.exe -ErrorAction SilentlyContinue | Select-Object FullName, Length | Format-Table -AutoSize
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: molvushka-installer
+          path: |
+            apps/desktop/dist/**/*.exe
+          if-no-files-found: warn
