@@ -68,11 +68,11 @@ jobs:
         run: |
           node -e "const fs=require('fs');const p='src/auto-launch.ts';if(!fs.existsSync(p)){console.log('auto-launch.ts not found');process.exit(0);}let c=fs.readFileSync(p,'utf8');c=c.replace(/this\.opts/g,'(this as any).opts');fs.writeFileSync(p,c);console.log('Patched auto-launch.ts');"
 
-      - name: Patch electron-main.ts to set taskbar icon
+      - name: Patch electron-main.ts
         working-directory: apps/desktop
         shell: cmd
         run: |
-          node -e "const fs=require('fs');const p='src/electron-main.ts';if(!fs.existsSync(p)){console.log('electron-main.ts not found');process.exit(1);}let c=fs.readFileSync(p,'utf8');const s='global.mainWindow.setContentProtection(store.get(\"enableContentProtection\"));';if(c.indexOf(s)===-1){console.log('Pattern not found');process.exit(1);}const r='try { const iconPath = await getIconPath(); console.log(\"[Molvushka] Setting window icon from:\", iconPath); global.mainWindow.setIcon(iconPath); } catch (e) { console.error(\"[Molvushka] Failed to set window icon:\", e); }\n    '+s;c=c.replace(s,r);fs.writeFileSync(p,c);console.log('Patched electron-main.ts with setIcon');"
+          node -e "const fs=require('fs');const p='src/electron-main.ts';if(!fs.existsSync(p)){console.log('electron-main.ts not found');process.exit(1);}let c=fs.readFileSync(p,'utf8');const s1='app.setAppUserModelId(buildConfig.appId);';if(c.indexOf(s1)===-1){console.log('AUMID pattern not found');process.exit(1);}c=c.replace(s1,'app.setAppUserModelId(\"ru.avt.molvushka\");');const s2='global.mainWindow.setContentProtection(store.get(\"enableContentProtection\"));';if(c.indexOf(s2)!==-1){const r='try { const iconPath = await getIconPath(); global.mainWindow.setIcon(iconPath); } catch (e) { console.error(\"[Molvushka] Failed to set window icon:\", e); }\n    '+s2;c=c.replace(s2,r);console.log('Patched setIcon too');}else{console.log('setIcon pattern not found (non-fatal)');}fs.writeFileSync(p,c);console.log('Patched electron-main.ts AUMID + setIcon');"
 
       - name: Configure package.json for full rebranding
         working-directory: apps/desktop
